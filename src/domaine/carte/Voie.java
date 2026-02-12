@@ -4,6 +4,7 @@ import domaine.structures.Tour;
 import domaine.unite.Minion;
 import java.util.ArrayList;
 import java.util.List;
+import moteur.Vecteur2;
 
 /**
  * Voie (lane) du champ de bataille.

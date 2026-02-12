@@ -68,10 +68,10 @@ public class SuiveurDeChemin {
         // Vérifier si on a atteint la fin du chemin
         if (indexPointActuel >= chemin.size()) {
             estTermine = true;
-            return positionActuelle;
+            return obtenirPointActuel();
         }
         
-        return positionActuelle;
+        return obtenirPointActuel();
     }
     
     // Obtenir le point actuel du chemin
@@ -98,6 +98,10 @@ public class SuiveurDeChemin {
     }
     
     public void setOnPathUpdatedCallback(OnPathUpdatedCallback callback) {
+        this.onPathUpdatedCallback = callback;
+    }
+    
+    public void setOnPathUpdated(OnPathUpdatedCallback callback) {
         this.onPathUpdatedCallback = callback;
     }
     

@@ -114,17 +114,17 @@ public class Equipe {
     // Surrendre
     public void surrendre() {
         aSurrendu = true;
-        System.out.println("🏳️ " + nom + " a surrendu!");
+        System.out.println("=== " + nom + " a surrendu! ===");
     }
     
     // Notifier la destruction de la base
     public void notifierBaseDetruite() {
-        System.out.println("💥 Base de " + nom + " détruite!");
+        System.out.println("*** Base de " + nom + " détruite! ***");
     }
     
     // Notifier la réapparition d'un héros
     public void notifierReapparition(Heros hero) {
-        System.out.println("✅ " + hero.getNom() + " est réapparu!");
+        System.out.println("+++ " + hero.getNom() + " est réapparu! +++");
     }
     
     // Notifier la fin de partie
@@ -132,11 +132,11 @@ public class Equipe {
         boolean aGagne = equipeGagnanteId != null && equipeGagnanteId.equals(idEquipe);
         
         if (aGagne) {
-            System.out.println("🎆 " + nom + " a gagné la partie!");
+            System.out.println("*** " + nom + " a gagné la partie! ***");
         } else if (equipeGagnanteId != null) {
-            System.out.println("😞 " + nom + " a perdu la partie.");
+            System.out.println("--- " + nom + " a perdu la partie. ---");
         } else {
-            System.out.println("🤝 " + nom + ": match nul.");
+            System.out.println("=== " + nom + ": match nul. ===");
         }
         
         // Calculer les récompenses de fin de partie
@@ -175,6 +175,7 @@ public class Equipe {
     public String getCouleur() { return couleur; }
     public List<Heros> getHeros() { return new ArrayList<>(heros); }
     public List<Minion> getMinionsActifs() { return new ArrayList<>(minionsActifs); }
+    public Base getBase() { return base; }
     
     public void setPartie(Partie partie) { 
         this.partie = partie;

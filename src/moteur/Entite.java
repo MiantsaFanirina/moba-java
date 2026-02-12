@@ -16,18 +16,12 @@ public abstract class Entite {
     protected double hauteur;
     protected boolean active;
     
-    protected moteur.UtilitairesCollision.Rectangle collisionneur;
-    
     public Entite(double x, double y, double largeur, double hauteur) {
         this.position = new moteur.Vecteur2(x, y);
         this.vitesse = new moteur.Vecteur2();
         this.largeur = largeur;
         this.hauteur = hauteur;
         this.active = true;
-        
-        this.collisionneur = new moteur.UtilitairesCollision.Rectangle(
-            (float) x, (float) y, (float) largeur, (float) hauteur
-        );
     }
     
     // Mettre à jour l'entité
@@ -35,33 +29,10 @@ public abstract class Entite {
         if (!active) return;
         
         onUpdate(tempsDelta, monde);
-        deplacerEtResoudreCollisions(tempsDelta, monde);
-        synchroniserCollisionneur();
     }
     
     // Logique spécifique à chaque entité (surcharger)
     protected abstract void onUpdate(double tempsDelta, Monde monde);
-    
-    // Appliquer la vitesse et résoudre les collisions
-    protected void deplacerEtResoudreCollisions(double tempsDelta, Monde monde) {
-        moteur.Vecteur2 vitesseFrame = vitesse.multiplier(tempsDelta);
-        double marge = Math.max(largeur, hauteur) * 2 + 
-                     Math.abs(vitesseFrame.x) + Math.abs(vitesseFrame.y) + 32;
-        
-        List<moteur.UtilitairesCollision.Rectangle> obstaclesProches = 
-            monde.obtenirCollisionneursProches(position.x, position.y, marge);
-        
-        moteur.SolveurCollision.resoudre(collisionneur, obstaclesProches, vitesseFrame);
-        
-        position.x = collisionneur.x;
-        position.y = collisionneur.y;
-    }
-    
-    // Synchroniser le collisionneur avec la position
-    protected void synchroniserCollisionneur() {
-        collisionneur.x = (float) position.x;
-        collisionneur.y = (float) position.y;
-    }
     
     // Rendre l'entité
     public abstract void rendre(Rendu rendu, Camera2D camera);
@@ -74,7 +45,6 @@ public abstract class Entite {
     // Définir la position
     public void setPosition(Vecteur2 position) {
         this.position = position;
-        synchroniserCollisionneur();
     }
     
     // Vérifier si l'entité est active

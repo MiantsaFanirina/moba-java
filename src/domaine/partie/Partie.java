@@ -4,6 +4,8 @@ import domaine.equipe.Equipe;
 import domaine.carte.Arene;
 import domaine.unite.Heros;
 import domaine.unite.Unite;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Représente une session de jeu.
@@ -30,7 +32,7 @@ public class Partie {
         this.idPartie = idPartie;
         this.equipe1 = equipe1;
         this.equipe2 = equipe2;
-        this.arene = new Arene(3, 60.0); // 3 voies, 60 secondes de respawn creeps
+        this.arene = new Arene(3, 60.0, 120.0); // 3 voies, 60s creeps, 120s monstres neutres
         
         this.tempsEcouleSecondes = 0;
         this.estTerminee = false;
@@ -52,7 +54,7 @@ public class Partie {
         equipe1.setPartie(this);
         equipe2.setPartie(this);
         
-        System.out.println("⚔️ Partie " + idPartie + ": " + equipe1.getNom() + " vs " + equipe2.getNom());
+        System.out.println("*** Partie " + idPartie + ": " + equipe1.getNom() + " vs " + equipe2.getNom() + " ***");
     }
     
     // Mettre à jour la partie
@@ -62,7 +64,13 @@ public class Partie {
         tempsEcouleSecondes += deltaSecondes;
         
         // Mettre à jour l'arène
-        arene.mettreAJour(deltaSecondes);
+        List<domaine.unite.Unite> toutesUnites = new ArrayList<>();
+        toutesUnites.addAll(equipe1.getHeros());
+        toutesUnites.addAll(equipe2.getHeros());
+        toutesUnites.addAll(equipe1.getMinionsActifs());
+        toutesUnites.addAll(equipe2.getMinionsActifs());
+        
+        arene.mettreAJour(deltaSecondes, List.of(equipe1, equipe2), toutesUnites);
         
         // Mettre à jour les équipes
         equipe1.mettreAJour(deltaSecondes);
@@ -81,7 +89,7 @@ public class Partie {
             terminer(1);
         }
         
-        // Vérifier la durée maximale
+        // Verifier la durée maximale
         if (tempsEcouleSecondes >= DUREE_MAXIMALE_PARTIE) {
             // Décider le vainqueur basé sur les performances
             Integer vainqueur = determinerVainqueurParPerformances();
@@ -159,21 +167,23 @@ public class Partie {
     
     // Afficher le résultat de la partie
     private void afficherResultat() {
-        System.out.println("\n🏁 FIN DE PARTIE 🏁");
+        System.out.println("\n*** FIN DE PARTIE ***");
         
         if (equipeGagnanteId != null) {
             Equipe equipeGagnante = equipeGagnanteId == 1 ? equipe1 : equipe2;
-            System.out.println("🎆 Victoire de " + equipeGagnante.getNom() + "!");
-            System.out.println("⏱️ Durée: " + (int)tempsEcouleSecondes + " secondes");
+            System.out.println("*** Victoire de " + equipeGagnante.getNom() + "! ***");
+            System.out.println("*** Durée: " + (int)tempsEcouleSecondes + " secondes ***");
             
             // Afficher les statistiques
             afficherStatistiques(equipeGagnante, equipeGagnanteId == 1 ? equipe2 : equipe1);
         } else {
-            System.out.println("🤝 Match nul!");
-            System.out.println("⏱️ Durée: " + (int)tempsEcouleSecondes + " secondes");
+            System.out.println("*** Match nul! ***");
         }
         
-        System.out.println("🏆");
+        System.out.println("*** ***");
+    }
+        
+        System.out.println("*** FIN ***");
     }
     
     // Afficher les statistiques détaillées
@@ -196,7 +206,7 @@ public class Partie {
             totalAssists += hero.getAssists();
             totalOr += hero.getOr();
             
-            System.out.printf("  ⚔️ %s: K:%d D:%d A:%d Or:%.0f Lvl:%d\n",
+            System.out.printf("  *** %s: K:%d D:%d A:%d Or:%.0f Lvl:%d ***\n",
                 hero.getNom(),
                 hero.getKills(),
                 hero.getDeaths(),
@@ -206,7 +216,7 @@ public class Partie {
             );
         }
         
-        System.out.printf("  📈 Équipe: K:%d D:%d A:%d Or:%.0f\n",
+        System.out.printf("  *** Équipe: K:%d D:%d A:%d Or:%.0f ***\n",
             totalKills, totalDeaths, totalAssists, totalOr);
     }
     

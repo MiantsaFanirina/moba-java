@@ -1,6 +1,7 @@
 package domaine.unite;
 
 import java.util.List;
+import moteur.Vecteur2;
 
 /**
  * Scuri généré automatiquement par les bases.

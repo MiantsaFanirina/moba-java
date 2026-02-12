@@ -5,10 +5,12 @@ import java.util.List;
 import domaine.sort.Sort;
 import domaine.equipement.Equipement;
 import domaine.structures.Fontaine;
+import moteur.Vecteur2;
+import moteur.SystemeCollision;
+import moteur.SuiveurDeChemin;
 
 /**
- * Héros contrôlé par le joueur.
- * Hérite de Unite avec des capacités supplémentaires.
+ * Héros contrôlé par le joueur avec système de pathfinding avancé.
  */
 public class Heros extends Unite {
     
@@ -34,10 +36,42 @@ public class Heros extends Unite {
     private double tempsReapparitionRestant;
     private Fontaine fontaineReapparition;
     
-    public Heros(int idUnite, int equipeId, String nom, String categorie, double x, double y) {
+    // Système de déplacement avancé
+    private Vecteur2 destination;
+    private List<Vecteur2> cheminActuel;
+    private SuiveurDeChemin suiveur;
+    private double vitesseIndividuelle;
+    private boolean estEnDeplacement;
+    private SystemeCollision systemeCollision;
+    private Vecteur2 vitesseActuelle; // Vélocité actuelle pour mouvement fluide
+    
+    // Types de héros avec vitesses différentes
+    public enum TypeHeros {
+        TANK("Tank", 0.8),
+        MAGE("Mage", 1.0),
+        ASSASSIN("Assassin", 1.4),
+        TIREUR("Tireur", 1.2),
+        SUPPORT("Support", 1.1);
+        
+        private final String nom;
+        private final double vitesseBase;
+        
+        TypeHeros(String nom, double vitesseBase) {
+            this.nom = nom;
+            this.vitesseBase = vitesseBase;
+        }
+        
+        public String getNom() { return nom; }
+        public double getVitesseBase() { return vitesseBase; }
+    }
+    
+    private TypeHeros typeHeros;
+    
+    public Heros(int idUnite, int equipeId, String nom, TypeHeros typeHeros, double x, double y) {
         super(idUnite, equipeId, x, y);
         this.nom = nom;
-        this.categorie = categorie;
+        this.typeHeros = typeHeros;
+        this.categorie = typeHeros.getNom();
         this.niveau = 1;
         this.xp = 0;
         this.xpPourNiveauSuivant = 100;
@@ -53,19 +87,225 @@ public class Heros extends Unite {
         this.estRappel = false;
         this.tempsReapparitionRestant = 0;
         
-        // Stats de base améliorées pour héros
-        this.hpMax = 120;
+        // Système de déplacement
+        this.destination = null;
+        this.cheminActuel = new ArrayList<>();
+        this.estEnDeplacement = false;
+        this.vitesseIndividuelle = typeHeros.getVitesseBase();
+        this.vitesseActuelle = new Vecteur2(0, 0);
+        
+        // Stats de base selon le type
+        switch (typeHeros) {
+            case TANK:
+                this.hpMax = 150;
+                this.attaque = 12;
+                this.defense = 15;
+                break;
+            case MAGE:
+                this.hpMax = 80;
+                this.attaque = 18;
+                this.defense = 5;
+                this.manaMax = 150;
+                break;
+            case ASSASSIN:
+                this.hpMax = 90;
+                this.attaque = 20;
+                this.defense = 6;
+                break;
+            case TIREUR:
+                this.hpMax = 100;
+                this.attaque = 16;
+                this.defense = 8;
+                this.portee = 3.0;
+                break;
+            case SUPPORT:
+                this.hpMax = 110;
+                this.attaque = 10;
+                this.defense = 10;
+                this.manaMax = 120;
+                break;
+        }
+        
         this.hp = hpMax;
-        this.manaMax = 100;
         this.mana = manaMax;
-        this.attaque = 15;
-        this.defense = 8;
-        this.vitesse = 1.2;
+        this.vitesse = vitesseIndividuelle;
         this.vitesseAttaque = 0.8;
-        this.portee = 1.5;
     }
     
-    // Méthodes de progression
+    /**
+     * Définit le système de collision pour le pathfinding.
+     */
+    public void setSystemeCollision(SystemeCollision systemeCollision) {
+        this.systemeCollision = systemeCollision;
+    }
+    
+    /**
+     * Déplace le héros vers une position en évitant les obstacles avec vélocité progressive.
+     */
+    public void deplacerVers(Vecteur2 destinationCible) {
+        if (systemeCollision == null) {
+            // Si pas de système de collision, déplacement direct
+            this.destination = destinationCible;
+            this.estEnDeplacement = true;
+            this.vitesseActuelle = destinationCible.soustraire(this.position).normaliser().multiplier(vitesseIndividuelle);
+            return;
+        }
+        
+        // Trouver le chemin optimal
+        List<Vecteur2> chemin = systemeCollision.trouverChemin(
+            this.position, destinationCible, 10.0 // Rayon du héros
+        );
+        
+        if (!chemin.isEmpty()) {
+            this.destination = destinationCible;
+            this.cheminActuel = chemin;
+            this.suiveur = new SuiveurDeChemin(chemin, (int)(vitesseIndividuelle * 100));
+            this.estEnDeplacement = true;
+            // Calculer la vitesse initiale vers le premier point du chemin
+            if (chemin.size() > 0) {
+                Vecteur2 prochainPoint = chemin.get(0);
+                Vecteur2 direction = prochainPoint.soustraire(this.position).normaliser();
+                this.vitesseActuelle = direction.multiplier(vitesseIndividuelle);
+            }
+        }
+    }
+    
+    /**
+     * Met à jour la position du héros avec mouvement fluide et vélocité.
+     */
+    public void mettreAJourDeplacement(double deltaTime) {
+        if (!estEnDeplacement || destination == null) {
+            // Arrêter progressivement le mouvement
+            vitesseActuelle = vitesseActuelle.multiplier(0.9);
+            if (vitesseActuelle.longueur() < 0.1) {
+                vitesseActuelle = new Vecteur2(0, 0);
+            }
+            return;
+        }
+        
+        // Vérifier si on est arrivé à destination
+        double distance = position.distance(destination);
+        if (distance < 10.0) {
+            // Ralentir à l'approche
+            vitesseActuelle = vitesseActuelle.multiplier(Math.max(0.1, distance / 10.0));
+            if (distance < 5.0) {
+                arretDeplacement();
+                return;
+            }
+        }
+        
+        if (systemeCollision != null && suiveur != null) {
+            // Suivre le chemin calculé avec vélocité fluide
+            Vecteur2 positionVoulue = suiveur.mettreAJour(position, deltaTime);
+            
+            if (positionVoulue != null) {
+                // Calculer la vélocité désirée
+                Vecteur2 vitesseDesiree = positionVoulue.soustraire(position).multiplier(1.0 / deltaTime);
+                
+                // Limiter la vélocité maximale
+                if (vitesseDesiree.longueur() > vitesseIndividuelle) {
+                    vitesseDesiree = vitesseDesiree.normaliser().multiplier(vitesseIndividuelle);
+                }
+                
+                // Interpolation fluide de la vélocité
+                double facteurLissage = 0.15; // Plus petit = plus fluide mais moins réactif
+                vitesseActuelle = vitesseActuelle.multiplier(1 - facteurLissage).ajouter(vitesseDesiree.multiplier(facteurLissage));
+                
+                // Calculer la nouvelle position
+                Vecteur2 deplacement = vitesseActuelle.multiplier(deltaTime);
+                Vecteur2 nouvellePosition = position.ajouter(deplacement);
+                
+                // Vérifier que la nouvelle position est valide
+                if (systemeCollision.estPositionValide(nouvellePosition, 10.0)) {
+                    position = nouvellePosition;
+                } else {
+                    // Recalculer le chemin si bloqué
+                    recalculerChemin();
+                }
+            } else {
+                // Le chemin est terminé, aller directement à destination
+                deplacementDirectAvecVelocite(deltaTime);
+            }
+        } else {
+            // Déplacement direct avec vélocité progressive
+            deplacementDirectAvecVelocite(deltaTime);
+        }
+    }
+    
+    /**
+     * Déplacement direct vers la destination.
+     */
+    private void deplacementDirect(double deltaTime) {
+        Vecteur2 direction = destination.soustraire(position).normaliser();
+        vitesseActuelle = direction.multiplier(vitesseIndividuelle);
+        
+        if (systemeCollision != null) {
+            // Utiliser le système de collision pour résoudre les collisions
+            Vecteur2 vitesse = vitesseActuelle.multiplier(deltaTime * 100);
+            
+            Vecteur2 nouvellePosition = systemeCollision.resoudreCollision(
+                position, 10.0, vitesse
+            );
+            
+            position = nouvellePosition;
+        } else {
+            // Déplacement simple
+            position = position.ajouter(vitesseActuelle.multiplier(deltaTime * 100));
+        }
+    }
+    
+    /**
+     * Déplacement direct avec vélocité progressive.
+     */
+    private void deplacementDirectAvecVelocite(double deltaTime) {
+        Vecteur2 direction = destination.soustraire(position).normaliser();
+        Vecteur2 vitesseDesiree = direction.multiplier(vitesseIndividuelle);
+        
+        // Interpolation fluide
+        double facteurLissage = 0.2;
+        vitesseActuelle = vitesseActuelle.multiplier(1 - facteurLissage).ajouter(vitesseDesiree.multiplier(facteurLissage));
+        
+        if (systemeCollision != null) {
+            Vecteur2 vitesse = vitesseActuelle.multiplier(deltaTime * 100);
+            Vecteur2 nouvellePosition = systemeCollision.resoudreCollision(
+                position, 10.0, vitesse
+            );
+            position = nouvellePosition;
+        } else {
+            position = position.ajouter(vitesseActuelle.multiplier(deltaTime * 100));
+        }
+    }
+    
+    /**
+     * Recalcule le chemin si l'actuel est bloqué.
+     */
+    private void recalculerChemin() {
+        if (systemeCollision != null && destination != null) {
+            List<Vecteur2> nouveauChemin = systemeCollision.trouverChemin(
+                position, destination, 10.0
+            );
+            
+            if (!nouveauChemin.isEmpty()) {
+                this.cheminActuel = nouveauChemin;
+                this.suiveur = new SuiveurDeChemin(nouveauChemin, (int)(vitesseIndividuelle * 100));
+            } else {
+                arretDeplacement();
+            }
+        }
+    }
+    
+    /**
+     * Arrête le déplacement du héros.
+     */
+    public void arretDeplacement() {
+        this.estEnDeplacement = false;
+        this.destination = null;
+        this.cheminActuel.clear();
+        this.suiveur = null;
+        this.vitesseActuelle = new Vecteur2(0, 0); // Arrêter la vélocité
+    }
+    
+    // Méthodes de progression (identiques à avant)
     public void gagnerXP(double montant) {
         xp += montant;
         while (xp >= xpPourNiveauSuivant) {
@@ -84,7 +324,7 @@ public class Heros extends Unite {
         
         // Amélioration des stats au niveau sup
         hpMax += 20;
-        manaMax += 15;
+        if (manaMax > 0) manaMax += 15;
         attaque += 3;
         defense += 2;
         
@@ -194,6 +434,7 @@ public class Heros extends Unite {
         super.mourir();
         deaths++;
         tempsReapparitionRestant = 15.0; // 15 secondes de respawn
+        arretDeplacement(); // Arrêter le déplacement à la mort
     }
     
     // Méthodes de combat spécialisées
@@ -220,6 +461,13 @@ public class Heros extends Unite {
     public List<Equipement> getEquipements() { return new ArrayList<>(equipements); }
     public boolean estRappel() { return estRappel; }
     public double getTempsReapparitionRestant() { return tempsReapparitionRestant; }
+    
+    public TypeHeros getTypeHeros() { return typeHeros; }
+    public double getVitesseIndividuelle() { return vitesseIndividuelle; }
+    public Vecteur2 getDestination() { return destination; }
+    public boolean estEnDeplacement() { return estEnDeplacement; }
+    public List<Vecteur2> getCheminActuel() { return new ArrayList<>(cheminActuel); }
+    public Vecteur2 getVitesseActuelle() { return vitesseActuelle; }
     
     public void setOr(double or) { this.or = or; }
     public void setAssists(int assists) { this.assists = assists; }

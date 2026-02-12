@@ -1,6 +1,7 @@
 package domaine.structures;
 
 import domaine.unite.Unite;
+import moteur.Vecteur2;
 
 /**
  * Tour de défense sur une voie.
@@ -18,10 +19,12 @@ public class Tour {
     private double vitesseAttaque;
     private double dernierTempsAttaque;
     private Unite cibleActuelle;
+    private Vecteur2 position;
     
     public Tour(int idTour, int equipeId, double x, double y) {
         this.idTour = idTour;
         this.equipeId = equipeId;
+        this.position = new Vecteur2(x, y);
         this.pointsVieMax = 1500;
         this.pointsVie = pointsVieMax;
         this.portee = 8.0;
@@ -149,8 +152,7 @@ public class Tour {
     public void setVitesseAttaque(double vitesse) { this.vitesseAttaque = vitesse; }
     
     // Position de la tour (pour les calculs de distance)
-    public moteur.Vecteur2 getPosition() {
-        // TODO: Retourner la position réelle de la tour
-        return new moteur.Vecteur2(0, 0); // Placeholder
+    public Vecteur2 getPosition() {
+        return position;
     }
 }

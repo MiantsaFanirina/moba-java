@@ -1,5 +1,7 @@
 package domaine.unite;
 
+import moteur.Vecteur2;
+
 /**
  * Monstre neutre de la jungle.
  * Hérite de Unite avec comportement de patrouille.
